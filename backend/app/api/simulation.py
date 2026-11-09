@@ -23,8 +23,20 @@ from ..utils.logger import get_logger
 from ..utils.locale import t, get_locale, set_locale
 from ..utils.zep_lifecycle import get_graph_readers, graph_lifecycle_lock
 from ..models.project import ProjectManager
+from .auth import get_current_user
 
 logger = get_logger('mirofish.api.simulation')
+
+
+def _has_simulation_access(state, user) -> bool:
+    """Checks if a user is authorized to access a given simulation."""
+    if not user or not state:
+        return True
+    if user.get('role') == 'admin':
+        return True
+    if state.user_id is not None and state.user_id != user.get('id'):
+        return False
+    return True
 
 
 def _get_default_platform(simulation_id: str) -> str:
@@ -246,11 +258,16 @@ def create_simulation():
             }), 400
         
         manager = SimulationManager()
+        user = get_current_user()
+        user_id = user.get('id') if user else None
+        user_email = user.get('email') if user else None
         state = manager.create_simulation(
             project_id=project_id,
             graph_id=graph_id,
             enable_twitter=data.get('enable_twitter', True),
             enable_reddit=data.get('enable_reddit', True),
+            user_id=user_id,
+            user_email=user_email
         )
         
         return jsonify({
@@ -791,6 +808,7 @@ def get_prepare_status():
 def get_simulation(simulation_id: str):
     """获取模拟状态"""
     try:
+        user = get_current_user()
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
         
@@ -799,6 +817,9 @@ def get_simulation(simulation_id: str):
                 "success": False,
                 "error": t('api.simulationNotFound', id=simulation_id)
             }), 404
+
+        if not _has_simulation_access(state, user):
+            return jsonify({"success": False, "error": "Acesso não autorizado a esta simulação."}), 403
         
         result = state.to_dict()
         
@@ -829,10 +850,12 @@ def list_simulations():
         project_id: 按项目ID过滤（可选）
     """
     try:
+        user = get_current_user()
         project_id = request.args.get('project_id')
+        user_id = user.get('id') if (user and user.get('role') != 'admin') else None
         
         manager = SimulationManager()
-        simulations = manager.list_simulations(project_id=project_id)
+        simulations = manager.list_simulations(project_id=project_id, user_id=user_id)
         
         return jsonify({
             "success": True,
@@ -944,10 +967,12 @@ def get_simulation_history():
         }
     """
     try:
+        user = get_current_user()
         limit = request.args.get('limit', 20, type=int)
+        user_id = user.get('id') if (user and user.get('role') != 'admin') else None
         
         manager = SimulationManager()
-        simulations = manager.list_simulations()[:limit]
+        simulations = manager.list_simulations(user_id=user_id)[:limit]
         
         # 增强模拟数据，只从 Simulation 文件读取
         enriched_simulations = []

@@ -111,6 +111,10 @@ class AuthService:
             "mp_plan_title": "Assinatura Anual Oracle Jurídico",
             "mp_plan_price": "197.00",
             "mp_plan_currency": "BRL",
+            "llm_api_key": os.environ.get("LLM_API_KEY", ""),
+            "llm_base_url": os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1"),
+            "llm_model_name": os.environ.get("LLM_MODEL_NAME", "gpt-4o-mini"),
+            "llm_provider": "google" if (os.environ.get("LLM_API_KEY", "").startswith("AIza") or os.environ.get("LLM_API_KEY", "").startswith("AQ")) else "openai",
             "homepage_config": json.dumps(default_homepage, ensure_ascii=False)
         }
 
@@ -123,6 +127,64 @@ class AuthService:
                     (k, str(v), now)
                 )
             conn.commit()
+
+        # Apply LLM settings from database to Config and environment if present
+        self.apply_stored_llm_config()
+
+    def apply_stored_llm_config(self):
+        """Loads LLM settings from database and syncs them to Config and os.environ."""
+        api_key = self.get_setting("llm_api_key")
+        base_url = self.get_setting("llm_base_url")
+        model = self.get_setting("llm_model_name")
+        if api_key:
+            Config.LLM_API_KEY = api_key
+            os.environ['LLM_API_KEY'] = api_key
+        if base_url:
+            Config.LLM_BASE_URL = base_url
+            os.environ['LLM_BASE_URL'] = base_url
+        if model:
+            Config.LLM_MODEL_NAME = model
+            os.environ['LLM_MODEL_NAME'] = model
+
+    def get_llm_config(self, mask_key: bool = False) -> Dict[str, Any]:
+        """Returns the active LLM configuration."""
+        api_key = self.get_setting("llm_api_key") or Config.LLM_API_KEY or ""
+        base_url = self.get_setting("llm_base_url") or Config.LLM_BASE_URL or "https://api.openai.com/v1"
+        model_name = self.get_setting("llm_model_name") or Config.LLM_MODEL_NAME or "gpt-4o-mini"
+        provider = self.get_setting("llm_provider") or "custom"
+
+        display_key = api_key
+        if mask_key and api_key and len(api_key) > 8:
+            display_key = f"{api_key[:4]}...{api_key[-4:]}"
+
+        return {
+            "api_key": display_key,
+            "has_key": bool(api_key),
+            "base_url": base_url,
+            "model_name": model_name,
+            "provider": provider
+        }
+
+    def set_llm_config(self, api_key: str, base_url: str, model_name: str, provider: str = "") -> None:
+        """Saves LLM configuration to DB and activates it across runtime."""
+        now = datetime.utcnow().isoformat()
+        if api_key and not api_key.startswith("..."):
+            self.set_setting("llm_api_key", api_key)
+            Config.LLM_API_KEY = api_key
+            os.environ['LLM_API_KEY'] = api_key
+
+        if base_url:
+            self.set_setting("llm_base_url", base_url)
+            Config.LLM_BASE_URL = base_url
+            os.environ['LLM_BASE_URL'] = base_url
+
+        if model_name:
+            self.set_setting("llm_model_name", model_name)
+            Config.LLM_MODEL_NAME = model_name
+            os.environ['LLM_MODEL_NAME'] = model_name
+
+        if provider:
+            self.set_setting("llm_provider", provider)
 
     # ================= Settings =================
     def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:

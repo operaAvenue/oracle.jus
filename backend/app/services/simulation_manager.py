@@ -77,6 +77,10 @@ class SimulationState:
     # 错误信息
     error: Optional[str] = None
     
+    # 用户隔离
+    user_id: Optional[int] = None
+    user_email: Optional[str] = None
+    
     def to_dict(self) -> Dict[str, Any]:
         """完整状态字典（内部使用）"""
         return {
@@ -98,6 +102,8 @@ class SimulationState:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "error": self.error,
+            "user_id": self.user_id,
+            "user_email": self.user_email,
         }
     
     def get_default_platform(self) -> str:
@@ -122,6 +128,8 @@ class SimulationState:
             "profiles_generated": self.profiles_generated,
             "config_generated": self.config_generated,
             "error": self.error,
+            "user_id": self.user_id,
+            "user_email": self.user_email,
         }
 
 
@@ -200,6 +208,8 @@ class SimulationManager:
             created_at=data.get("created_at", datetime.now().isoformat()),
             updated_at=data.get("updated_at", datetime.now().isoformat()),
             error=data.get("error"),
+            user_id=data.get("user_id"),
+            user_email=data.get("user_email"),
         )
         
         self._simulations[simulation_id] = state
@@ -211,6 +221,8 @@ class SimulationManager:
         graph_id: str,
         enable_twitter: bool = True,
         enable_reddit: bool = True,
+        user_id: Optional[int] = None,
+        user_email: Optional[str] = None
     ) -> SimulationState:
         """
         创建新的模拟
@@ -220,12 +232,25 @@ class SimulationManager:
             graph_id: Zep图谱ID
             enable_twitter: 是否启用Twitter模拟
             enable_reddit: 是否启用Reddit模拟
+            user_id: 所属用户ID
+            user_email: 所属用户邮箱
             
         Returns:
             SimulationState
         """
         import uuid
+        from ..models.project import ProjectManager
         simulation_id = f"sim_{uuid.uuid4().hex[:12]}"
+
+        # Inherit user_id and user_email from project if not provided
+        if user_id is None and project_id:
+            try:
+                proj = ProjectManager.get_project(project_id)
+                if proj:
+                    user_id = proj.user_id
+                    user_email = proj.user_email
+            except Exception:
+                pass
         
         state = SimulationState(
             simulation_id=simulation_id,
@@ -234,6 +259,8 @@ class SimulationManager:
             enable_twitter=enable_twitter,
             enable_reddit=enable_reddit,
             status=SimulationStatus.CREATED,
+            user_id=user_id,
+            user_email=user_email,
         )
         
         self._save_simulation_state(state)
@@ -480,7 +507,7 @@ class SimulationManager:
         """获取模拟状态"""
         return self._load_simulation_state(simulation_id)
     
-    def list_simulations(self, project_id: Optional[str] = None) -> List[SimulationState]:
+    def list_simulations(self, project_id: Optional[str] = None, user_id: Optional[int] = None) -> List[SimulationState]:
         """列出所有模拟"""
         simulations = []
         
@@ -493,6 +520,8 @@ class SimulationManager:
                 
                 state = self._load_simulation_state(sim_id)
                 if state:
+                    if user_id is not None and state.user_id is not None and state.user_id != user_id:
+                        continue
                     if project_id is None or state.project_id == project_id:
                         simulations.append(state)
         

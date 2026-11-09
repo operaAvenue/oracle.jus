@@ -23,6 +23,7 @@ from ..utils.zep_lifecycle import (
     register_graph_reader,
     unregister_graph_reader,
 )
+from .auth import get_current_user
 
 logger = get_logger('mirofish.api.report')
 
@@ -413,6 +414,7 @@ def get_report(report_id: str):
         }
     """
     try:
+        user = get_current_user()
         report = ReportManager.get_report(report_id)
         
         if not report:
@@ -420,6 +422,11 @@ def get_report(report_id: str):
                 "success": False,
                 "error": t('api.reportNotFound', id=report_id)
             }), 404
+
+        if user and user.get('role') != 'admin':
+            sim = SimulationManager().get_simulation(report.simulation_id)
+            if sim and sim.user_id is not None and sim.user_id != user.get('id'):
+                return jsonify({"success": False, "error": "Acesso não autorizado a este relatório."}), 403
         
         return jsonify({
             "success": True,
@@ -491,6 +498,7 @@ def list_reports():
         }
     """
     try:
+        user = get_current_user()
         simulation_id = request.args.get('simulation_id')
         limit = request.args.get('limit', 50, type=int)
         
@@ -498,6 +506,11 @@ def list_reports():
             simulation_id=simulation_id,
             limit=limit
         )
+
+        if user and user.get('role') != 'admin':
+            sim_manager = SimulationManager()
+            user_sim_ids = {s.simulation_id for s in sim_manager.list_simulations(user_id=user.get('id'))}
+            reports = [r for r in reports if r.simulation_id in user_sim_ids]
         
         return jsonify({
             "success": True,

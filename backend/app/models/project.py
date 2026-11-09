@@ -54,6 +54,10 @@ class Project:
     # 错误信息
     error: Optional[str] = None
     
+    # 用户隔离
+    user_id: Optional[int] = None
+    user_email: Optional[str] = None
+    
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
@@ -73,7 +77,9 @@ class Project:
             "simulation_requirement": self.simulation_requirement,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
-            "error": self.error
+            "error": self.error,
+            "user_id": self.user_id,
+            "user_email": self.user_email
         }
     
     @classmethod
@@ -100,7 +106,9 @@ class Project:
             simulation_requirement=data.get('simulation_requirement'),
             chunk_size=data.get('chunk_size', 500),
             chunk_overlap=data.get('chunk_overlap', 50),
-            error=data.get('error')
+            error=data.get('error'),
+            user_id=data.get('user_id'),
+            user_email=data.get('user_email')
         )
 
 
@@ -136,12 +144,14 @@ class ProjectManager:
         return os.path.join(cls._get_project_dir(project_id), 'extracted_text.txt')
     
     @classmethod
-    def create_project(cls, name: str = "Unnamed Project") -> Project:
+    def create_project(cls, name: str = "Unnamed Project", user_id: Optional[int] = None, user_email: Optional[str] = None) -> Project:
         """
         创建新项目
         
         Args:
             name: 项目名称
+            user_id: 所属用户ID
+            user_email: 所属用户邮箱
             
         Returns:
             新创建的Project对象
@@ -156,7 +166,9 @@ class ProjectManager:
             name=name,
             status=ProjectStatus.CREATED,
             created_at=now,
-            updated_at=now
+            updated_at=now,
+            user_id=user_id,
+            user_email=user_email
         )
         
         # 创建项目目录结构
@@ -201,11 +213,12 @@ class ProjectManager:
         return Project.from_dict(data)
     
     @classmethod
-    def list_projects(cls, limit: Optional[int] = 50) -> List[Project]:
+    def list_projects(cls, user_id: Optional[int] = None, limit: Optional[int] = 50) -> List[Project]:
         """
         列出所有项目
         
         Args:
+            user_id: 过滤用户ID（若提供）
             limit: 返回数量限制
             
         Returns:
@@ -217,6 +230,8 @@ class ProjectManager:
         for project_id in os.listdir(cls.PROJECTS_DIR):
             project = cls.get_project(project_id)
             if project:
+                if user_id is not None and project.user_id is not None and project.user_id != user_id:
+                    continue
                 projects.append(project)
         
         # 按创建时间倒序排序

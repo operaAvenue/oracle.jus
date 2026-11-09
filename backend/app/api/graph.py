@@ -18,7 +18,8 @@ from ..services.graph_builder import BatchSubmission, GraphBuilderService
 from ..services.text_processor import TextProcessor
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
-from ..utils.locale import t, get_locale, set_locale
+from ..utils.locale import t
+from .auth import get_current_user, get_locale, set_locale
 from ..utils.zep_lifecycle import get_graph_readers, graph_lifecycle_lock
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
@@ -134,6 +135,7 @@ def get_project(project_id: str):
     """
     获取项目详情
     """
+    user = get_current_user()
     project = ProjectManager.get_project(project_id)
     
     if not project:
@@ -141,6 +143,10 @@ def get_project(project_id: str):
             "success": False,
             "error": t('api.projectNotFound', id=project_id)
         }), 404
+
+    if user and user.get('role') != 'admin':
+        if project.user_id is not None and project.user_id != user.get('id'):
+            return jsonify({"success": False, "error": "Acesso não autorizado a este projeto."}), 403
 
     return jsonify({
         "success": True,
@@ -153,8 +159,10 @@ def list_projects():
     """
     列出所有项目
     """
+    user = get_current_user()
     limit = request.args.get('limit', 50, type=int)
-    projects = ProjectManager.list_projects(limit=limit)
+    user_id = user.get('id') if (user and user.get('role') != 'admin') else None
+    projects = ProjectManager.list_projects(user_id=user_id, limit=limit)
     
     return jsonify({
         "success": True,
@@ -173,12 +181,18 @@ def _delete_project_impl(project_id: str):
     """
     删除项目
     """
+    user = get_current_user()
     project = ProjectManager.get_project(project_id)
     if not project:
         return jsonify({
             "success": False,
             "error": t('api.projectNotFound', id=project_id)
         }), 404
+
+    if user and user.get('role') != 'admin':
+        if project.user_id is not None and project.user_id != user.get('id'):
+            return jsonify({"success": False, "error": "Acesso não autorizado a este projeto."}), 403
+
     if _project_has_active_build(project):
         return jsonify({
             "success": False,
@@ -220,6 +234,7 @@ def _reset_project_impl(project_id: str):
     """
     重置项目状态（用于重新构建图谱）
     """
+    user = get_current_user()
     project = ProjectManager.get_project(project_id)
     
     if not project:
@@ -227,6 +242,10 @@ def _reset_project_impl(project_id: str):
             "success": False,
             "error": t('api.projectNotFound', id=project_id)
         }), 404
+
+    if user and user.get('role') != 'admin':
+        if project.user_id is not None and project.user_id != user.get('id'):
+            return jsonify({"success": False, "error": "Acesso não autorizado a este projeto."}), 403
 
     if _project_has_active_build(project):
         return jsonify({
@@ -316,8 +335,13 @@ def generate_ontology():
                 "error": t('api.requireFileUpload')
             }), 400
         
+        # 获取当前用户
+        user = get_current_user()
+        user_id = user.get('id') if user else None
+        user_email = user.get('email') if user else None
+
         # 创建项目
-        project = ProjectManager.create_project(name=project_name)
+        project = ProjectManager.create_project(name=project_name, user_id=user_id, user_email=user_email)
         project.simulation_requirement = simulation_requirement
         logger.info(f"创建项目: {project.project_id}")
         

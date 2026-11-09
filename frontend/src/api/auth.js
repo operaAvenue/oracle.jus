@@ -80,6 +80,38 @@ export function uploadAdminAsset(file) {
   })
 }
 
+// Admin LLM APIs
+export function getAdminLLMSettings() {
+  return request({
+    url: '/api/admin/llm',
+    method: 'get'
+  })
+}
+
+export function detectAdminLLMProvider(apiKey) {
+  return request({
+    url: '/api/admin/llm/detect',
+    method: 'post',
+    data: { api_key: apiKey }
+  })
+}
+
+export function testAdminLLMConnection(data) {
+  return request({
+    url: '/api/admin/llm/test',
+    method: 'post',
+    data
+  })
+}
+
+export function saveAdminLLMSettings(data) {
+  return request({
+    url: '/api/admin/llm/save',
+    method: 'post',
+    data
+  })
+}
+
 // Payments API
 export function createMercadoPagoPreference() {
   return request({

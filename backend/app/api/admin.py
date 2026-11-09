@@ -10,6 +10,7 @@ from flask import Blueprint, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 
 from ..services.auth_service import AuthService
+from ..services.llm_provider_service import LLMProviderService
 from .auth import admin_required
 from ..config import Config
 from ..utils.logger import get_logger
@@ -114,6 +115,92 @@ def update_settings():
         "success": True,
         "message": "Configurações salvas com sucesso.",
         "data": auth_service.get_all_settings()
+    })
+
+# ================= LLM Environment Configuration =================
+@admin_bp.route('/llm', methods=['GET'])
+@admin_required
+def get_llm_settings():
+    """Returns the current LLM configuration."""
+    auth_service = AuthService.get_instance()
+    config = auth_service.get_llm_config(mask_key=False)
+    return jsonify({
+        "success": True,
+        "data": config
+    })
+
+@admin_bp.route('/llm/detect', methods=['POST'])
+@admin_required
+def detect_llm_provider():
+    """Detects LLM provider and available models based on an API Key."""
+    data = request.get_json() or {}
+    api_key = data.get('api_key', '').strip()
+    if not api_key:
+        return jsonify({"success": False, "error": "Informe uma chave de API para detecção."}), 400
+
+    detection = LLMProviderService.detect_provider(api_key)
+    return jsonify({
+        "success": True,
+        "data": detection
+    })
+
+@admin_bp.route('/llm/test', methods=['POST'])
+@admin_required
+def test_llm_connection():
+    """Tests connection to an LLM provider."""
+    data = request.get_json() or {}
+    auth_service = AuthService.get_instance()
+
+    api_key = (data.get('api_key') or "").strip()
+    # If key wasn't changed and is empty, fallback to stored key
+    if not api_key:
+        stored = auth_service.get_llm_config()
+        api_key = stored.get('api_key', '')
+
+    base_url = (data.get('base_url') or "").strip()
+    model = (data.get('model') or "").strip()
+
+    if not api_key:
+        return jsonify({"success": False, "error": "Chave de API não informada."}), 400
+    if not base_url:
+        return jsonify({"success": False, "error": "Base URL não informada."}), 400
+    if not model:
+        return jsonify({"success": False, "error": "Modelo não informado."}), 400
+
+    result = LLMProviderService.test_connection(api_key, base_url, model)
+    return jsonify(result)
+
+@admin_bp.route('/llm/save', methods=['POST'])
+@admin_required
+def save_llm_settings():
+    """Saves and applies LLM environment configuration."""
+    data = request.get_json() or {}
+    auth_service = AuthService.get_instance()
+
+    api_key = (data.get('api_key') or "").strip()
+    base_url = (data.get('base_url') or "").strip()
+    model = (data.get('model') or "").strip()
+    provider = (data.get('provider') or "").strip()
+
+    if not api_key:
+        # Check if we already have one stored
+        stored = auth_service.get_llm_config()
+        api_key = stored.get('api_key', '')
+        if not api_key:
+            return jsonify({"success": False, "error": "A Chave de API é obrigatória."}), 400
+
+    if not base_url:
+        return jsonify({"success": False, "error": "A Base URL é obrigatória."}), 400
+    if not model:
+        return jsonify({"success": False, "error": "O Modelo é obrigatório."}), 400
+
+    auth_service.set_llm_config(api_key, base_url, model, provider)
+    logger.info(f"Admin updated LLM configuration: provider={provider}, model={model}, base_url={base_url}")
+
+    return jsonify({
+        "success": True,
+        "message": "Ambiente de IA configurado e ativado com sucesso!",
+        "data": auth_service.get_llm_config(mask_key=False)
     })
 
 # ================= Asset Upload (PageBuilder) =================

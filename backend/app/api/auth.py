@@ -61,7 +61,7 @@ def google_auth():
     data = request.get_json() or {}
     credential = data.get('credential')
     code = data.get('code')
-    redirect_uri = data.get('redirect_uri', 'https://oracle.fcsg.fr')
+    redirect_uri = data.get('redirect_uri', 'https://jus.fcsg.fr')
 
     auth_service = AuthService.get_instance()
     client_id = auth_service.get_setting("google_client_id")

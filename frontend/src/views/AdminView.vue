@@ -35,6 +35,13 @@
       >
         ⚙️ Mercado Pago & Credenciais
       </button>
+      <button 
+        class="tab-btn" 
+        :class="{ active: currentTab === 'llm' }" 
+        @click="currentTab = 'llm'"
+      >
+        🤖 Ambiente de IA & Provedores
+      </button>
     </div>
 
     <!-- Feedback Message -->
@@ -357,10 +364,138 @@
 
             <div class="webhook-info-box">
               <div class="webhook-label">Origens autorizadas do Google Cloud Console:</div>
+              <code style="display:block; margin: 4px 0;">https://jus.fcsg.fr</code>
               <code style="display:block; margin: 4px 0;">https://oracle.fcsg.fr</code>
               <div class="webhook-label" style="margin-top: 8px;">URIs de redirecionamento autorizadas:</div>
+              <code style="display:block; margin: 4px 0;">https://jus.fcsg.fr</code>
               <code style="display:block; margin: 4px 0;">https://oracle.fcsg.fr</code>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ABA 4: AMBIENTE DE IA & PROVEDORES -->
+      <section v-if="currentTab === 'llm'" class="tab-pane">
+        <div class="pane-header">
+          <div>
+            <h2 class="pane-title">Ambiente de IA & Provedores</h2>
+            <p class="pane-subtitle">
+              Configure a chave de API, base URL e modelo. O detector inteligente identifica o provedor (Google Gemini, OpenAI, Groq, DeepSeek, Anthropic) e lista os modelos disponíveis automaticamente.
+            </p>
+          </div>
+        </div>
+
+        <div class="settings-card" style="max-width: 850px;">
+          <!-- Detecção Inteligente de Chave -->
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" style="margin-bottom: 0;">Chave de API (API Key)</label>
+              <span v-if="llmForm.has_key" class="active-key-badge">🟢 Chave Ativa no Servidor</span>
+            </div>
+            <div class="api-key-input-row">
+              <input 
+                v-model="llmForm.api_key" 
+                :type="showApiKey ? 'text' : 'password'" 
+                class="admin-input flex-1" 
+                placeholder="Insira sua chave (ex: AIzaSy..., sk-..., gsk_..., deepseek-...)" 
+              />
+              <button 
+                type="button" 
+                class="btn-secondary" 
+                @click="showApiKey = !showApiKey"
+              >
+                {{ showApiKey ? 'Ocultar' : 'Exibir' }}
+              </button>
+              <button 
+                type="button" 
+                class="detect-btn" 
+                :disabled="detectingLLM || !llmForm.api_key"
+                @click="onDetectLLM"
+              >
+                <span v-if="detectingLLM">Detectando...</span>
+                <span v-else>🔍 Detectar Provedor & Modelos</span>
+              </button>
+            </div>
+            <p class="field-hint">
+              Detecta automaticamente chaves do <strong>Google AI Studio (Gemini)</strong>, <strong>OpenAI</strong>, <strong>Groq</strong>, <strong>DeepSeek</strong>, <strong>OpenRouter</strong> ou <strong>Anthropic</strong>.
+            </p>
+          </div>
+
+          <!-- Banner de Provedor Detectado -->
+          <div v-if="detectedProviderName" class="provider-banner">
+            <span class="provider-tag">Provedor Identificado</span>
+            <span class="provider-name">{{ detectedProviderName }}</span>
+          </div>
+
+          <!-- Base URL -->
+          <div class="form-group">
+            <label class="form-label">Base URL (Endpoint OpenAI Compatível)</label>
+            <input 
+              v-model="llmForm.base_url" 
+              type="text" 
+              class="admin-input" 
+              placeholder="https://generativelanguage.googleapis.com/v1beta/openai/" 
+            />
+            <p class="field-hint">Endpoint da API OpenAI-compatible utilizado por todos os agentes de simulação.</p>
+          </div>
+
+          <!-- Modelo Dropdown ou Custom -->
+          <div class="form-group">
+            <label class="form-label">Modelo Selecionado (LLM Model)</label>
+            <div class="model-selection-row">
+              <select 
+                v-if="availableModels.length > 0" 
+                v-model="llmForm.model_name" 
+                class="admin-input flex-1"
+              >
+                <option v-for="m in availableModels" :key="m.id" :value="m.id">
+                  {{ m.name }}
+                </option>
+              </select>
+              <input 
+                v-model="llmForm.model_name" 
+                type="text" 
+                class="admin-input flex-1" 
+                placeholder="Ex: gemini-2.5-flash ou gpt-4o" 
+              />
+            </div>
+            <p class="field-hint">Selecione na lista detectada ou digite manualmente o identificador do modelo.</p>
+          </div>
+
+          <!-- Teste de Conexão Feedback -->
+          <div v-if="testResult" class="test-result-box" :class="{ success: testResult.success, error: !testResult.success }">
+            <div class="test-result-header">
+              <span v-if="testResult.success">🟢 {{ testResult.message }}</span>
+              <span v-else>🔴 Erro de Conexão</span>
+            </div>
+            <div v-if="testResult.success" class="test-result-body">
+              Resposta do modelo: "<code>{{ testResult.response }}</code>" | Latência: {{ testResult.latency_ms }}ms
+            </div>
+            <div v-else class="test-result-body error-msg">
+              {{ testResult.error }}
+            </div>
+          </div>
+
+          <!-- Ações -->
+          <div class="form-actions-row">
+            <button 
+              type="button" 
+              class="test-btn" 
+              :disabled="testingConnection"
+              @click="onTestLLM"
+            >
+              <span v-if="testingConnection">Testando...</span>
+              <span v-else>⚡ Testar Conexão</span>
+            </button>
+            <button 
+              type="button" 
+              class="save-btn" 
+              :disabled="savingLLM"
+              @click="onSaveLLM"
+            >
+              <span v-if="savingLLM">Salvando...</span>
+              <span v-else>💾 Salvar e Ativar Ambiente</span>
+            </button>
           </div>
         </div>
       </section>
@@ -378,7 +513,11 @@ import {
   deleteAdminUser, 
   getAdminSettings, 
   updateAdminSettings, 
-  uploadAdminAsset 
+  uploadAdminAsset,
+  getAdminLLMSettings,
+  detectAdminLLMProvider,
+  testAdminLLMConnection,
+  saveAdminLLMSettings
 } from '../api/auth'
 
 const router = useRouter()
@@ -420,6 +559,115 @@ const pageConfig = reactive({
   heroImageUrl: '',
   logoUrl: ''
 })
+
+// LLM Configuration
+const llmForm = reactive({
+  api_key: '',
+  has_key: false,
+  base_url: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+  model_name: 'gemini-2.5-flash',
+  provider: 'google'
+})
+const showApiKey = ref(false)
+const detectingLLM = ref(false)
+const detectedProviderName = ref('')
+const availableModels = ref([])
+const testingConnection = ref(false)
+const testResult = ref(null)
+const savingLLM = ref(false)
+
+const loadLLMSettings = async () => {
+  try {
+    const res = await getAdminLLMSettings()
+    if (res && res.success && res.data) {
+      llmForm.api_key = res.data.api_key || ''
+      llmForm.has_key = res.data.has_key || false
+      llmForm.base_url = res.data.base_url || 'https://generativelanguage.googleapis.com/v1beta/openai/'
+      llmForm.model_name = res.data.model_name || 'gemini-2.5-flash'
+      llmForm.provider = res.data.provider || 'google'
+      if (res.data.provider === 'google') detectedProviderName.value = 'Google Gemini (AI Studio)'
+      else if (res.data.provider === 'openai') detectedProviderName.value = 'OpenAI Oficial'
+      else if (res.data.provider === 'groq') detectedProviderName.value = 'Groq Cloud'
+      else if (res.data.provider === 'deepseek') detectedProviderName.value = 'DeepSeek'
+      else if (res.data.provider === 'openrouter') detectedProviderName.value = 'OpenRouter'
+    }
+  } catch (e) {
+    console.error('Failed to load LLM settings', e)
+  }
+}
+
+const onDetectLLM = async () => {
+  if (!llmForm.api_key) {
+    showToast('Informe uma chave de API para detecção.', 'error')
+    return
+  }
+  detectingLLM.value = true
+  try {
+    const res = await detectAdminLLMProvider(llmForm.api_key)
+    if (res && res.success && res.data) {
+      const d = res.data
+      llmForm.provider = d.provider
+      detectedProviderName.value = d.provider_name
+      llmForm.base_url = d.base_url
+      availableModels.value = d.models || []
+      if (d.default_model) {
+        llmForm.model_name = d.default_model
+      }
+      showToast(`Provedor identificado: ${d.provider_name}! Modelos sugeridos carregados.`, 'success')
+    } else {
+      showToast(res.error || 'Não foi possível detectar o provedor.', 'error')
+    }
+  } catch (e) {
+    showToast(e.message || 'Erro na detecção de provedor.', 'error')
+  } finally {
+    detectingLLM.value = false
+  }
+}
+
+const onTestLLM = async () => {
+  testingConnection.value = true
+  testResult.value = null
+  try {
+    const res = await testAdminLLMConnection({
+      api_key: llmForm.api_key,
+      base_url: llmForm.base_url,
+      model: llmForm.model_name
+    })
+    testResult.value = res
+    if (res && res.success) {
+      showToast(res.message || 'Conexão testada com sucesso!', 'success')
+    } else {
+      showToast(res.error || 'Falha no teste de conexão.', 'error')
+    }
+  } catch (e) {
+    testResult.value = { success: false, error: e.message || 'Erro de rede na comunicação com o LLM.' }
+    showToast(e.message || 'Erro no teste de conexão.', 'error')
+  } finally {
+    testingConnection.value = false
+  }
+}
+
+const onSaveLLM = async () => {
+  savingLLM.value = true
+  try {
+    const res = await saveAdminLLMSettings({
+      api_key: llmForm.api_key,
+      base_url: llmForm.base_url,
+      model: llmForm.model_name,
+      provider: llmForm.provider
+    })
+    if (res && res.success) {
+      showToast('Ambiente de IA ativado com sucesso!', 'success')
+      llmForm.has_key = true
+    } else {
+      showToast(res.error || 'Erro ao salvar configuração de IA.', 'error')
+    }
+  } catch (e) {
+    showToast(e.message || 'Erro ao salvar.', 'error')
+  } finally {
+    savingLLM.value = false
+  }
+}
 
 const showToast = (msg, type = 'success') => {
   toastMsg.value = msg
@@ -591,7 +839,7 @@ onMounted(async () => {
     router.push('/')
     return
   }
-  await Promise.all([loadUsers(), loadSettings()])
+  await Promise.all([loadUsers(), loadSettings(), loadLLMSettings()])
 })
 </script>
 
@@ -1155,5 +1403,149 @@ onMounted(async () => {
   font-size: 11px;
   color: #64748b;
   margin: 8px 0 0;
+}
+
+/* LLM Admin Styles */
+.active-key-badge {
+  font-size: 11px;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.api-key-input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-secondary {
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #cbd5e1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.detect-btn {
+  padding: 10px 18px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.detect-btn:hover:not(:disabled) {
+  background: #60a5fa;
+}
+
+.detect-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.provider-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+}
+
+.provider-tag {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #60a5fa;
+  letter-spacing: 0.5px;
+}
+
+.provider-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 6px 0 0;
+}
+
+.model-selection-row {
+  display: flex;
+  gap: 10px;
+}
+
+.test-btn {
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.test-btn:hover:not(:disabled) {
+  background: rgba(234, 179, 8, 0.15);
+}
+
+.test-result-box {
+  margin-top: 18px;
+  padding: 14px 18px;
+  border-radius: 8px;
+}
+
+.test-result-box.success {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+
+.test-result-box.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.test-result-header {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.test-result-body {
+  font-size: 12px;
+}
+
+.test-result-body code {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.error-msg {
+  word-break: break-all;
 }
 </style>
