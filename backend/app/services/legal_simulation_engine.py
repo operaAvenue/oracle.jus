@@ -19,7 +19,14 @@ from datetime import datetime
 
 from openai import OpenAI
 from ..utils.openai_chat_compat import create_chat_completion, extract_chat_completion_text
-from ..scripts.action_logger import PlatformActionLogger, SimulationLogManager
+
+try:
+    from action_logger import PlatformActionLogger, SimulationLogManager
+except ImportError:
+    scripts_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../scripts"))
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    from action_logger import PlatformActionLogger, SimulationLogManager
 
 # Mapeamento de papéis jurídicos
 ROLE_RELATOR = "Desembargador/Ministro Relator"
