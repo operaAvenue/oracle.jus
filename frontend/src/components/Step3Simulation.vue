@@ -82,15 +82,6 @@
               <span class="tooltip-action">ESCLARECIMENTO</span>
             </div>
           </div>
-              <span class="tooltip-action">DISLIKE</span>
-              <span class="tooltip-action">SEARCH</span>
-              <span class="tooltip-action">TREND</span>
-              <span class="tooltip-action">FOLLOW</span>
-              <span class="tooltip-action">MUTE</span>
-              <span class="tooltip-action">REFRESH</span>
-              <span class="tooltip-action">IDLE</span>
-            </div>
-          </div>
         </div>
       </div>
 
