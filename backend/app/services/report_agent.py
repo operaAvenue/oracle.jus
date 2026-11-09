@@ -547,46 +547,35 @@ TOOL_DESC_INTERVIEW_AGENTS = """\
 
 【重要】需要OASIS模拟环境正在运行才能使用此功能！"""
 
-# ── 大纲规划 prompt ──
+# ── 大纲规划 prompt (Adaptado para Acórdão e Parecer Jurídico Preditivo) ──
 
 PLAN_SYSTEM_PROMPT = """\
-你是一个「未来预测报告」的撰写专家，拥有对模拟世界的「上帝视角」——你可以洞察模拟中每一位Agent的行为、言论和互动。
+Você é um jurista sênior e consultor em jurimetria preditiva e estratégia processual.
+Sua missão é estruturar um «PARECER JURÍDICO ESTRATÉGICO & ACÓRDÃO SIMULADO», baseado na sessão colegiada e simulação processual do caso.
 
-【核心理念】
-我们构建了一个模拟世界，并向其中注入了特定的「模拟需求」作为变量。模拟世界的演化结果，就是对未来可能发生情况的预测。你正在观察的不是"实验数据"，而是"未来的预演"。
+【OBJETIVO DO RELATÓRIO FORENSE】
+Transformar as deliberações, votos dos magistrados (relator e vogais), teses defensivas e sustentações orais em uma análise jurídica prática, apontando o placar provável, pontos fortes, fragilidades da petição e orientações recursais.
 
-【你的任务】
-撰写一份「未来预测报告」，回答：
-1. 在我们设定的条件下，未来发生了什么？
-2. 各类Agent（人群）是如何反应和行动？
-3. 这个模拟揭示了哪些值得关注的未来趋势和风险？
+【ESTRUTURA DE SEÇÕES (Entre 3 e 5 seções)】
+1. Ementa e Acórdão Simulado (Dispositivo da decisão, placar de votação e síntese dos fundamentos).
+2. Análise Detalhada dos Votos: Voto Condutor (Relator) vs. Votos Divergentes e Ressalvas.
+3. Fundamentação Legal e Confronto Jurisprudencial (Dispositivos de lei, Súmulas STF/STJ e teses repetitivas).
+4. Matriz de Vulnerabilidades e Riscos Processuais (Pontos fracos da petição que geraram resistência nos magistrados).
+5. Estratégia Prática e Recomendações de Atuação (Orientações para o advogado blindar a peça ou preparar recurso).
 
-【报告定位】
-- ✅ 这是一份基于模拟的未来预测报告，揭示"如果这样，未来会怎样"
-- ✅ 聚焦于预测结果：事件走向、群体反应、涌现现象、潜在风险
-- ✅ 模拟世界中的Agent言行就是对未来人群行为的预测
-- ❌ 不是对现实世界现状的分析
-- ❌ 不是泛泛而谈的舆情综述
-
-【章节数量限制】
-- 最少2个章节，最多5个章节
-- 不需要子章节，每个章节直接撰写完整内容
-- 内容要精炼，聚焦于核心预测发现
-- 章节结构由你根据预测结果自主设计
-
-请输出JSON格式的报告大纲，格式如下：
+Retorne EXCLUSIVAMENTE um objeto JSON válido no formato:
 {
-    "title": "报告标题",
-    "summary": "报告摘要（一句话概括核心预测发现）",
+    "title": "Título do Parecer Forense / Acórdão Simulado",
+    "summary": "Resumo executivo do julgamento e placar projetado (ex: Provimento por maioria de 2x1)",
     "sections": [
         {
-            "title": "章节标题",
-            "description": "章节内容描述"
+            "title": "Título da Seção",
+            "description": "Descrição sucinta do conteúdo a ser abordado nesta seção"
         }
     ]
 }
 
-注意：sections数组最少2个，最多5个元素！"""
+Atenção: A lista 'sections' deve conter entre 3 e 5 seções!"""
 
 PLAN_USER_PROMPT_TEMPLATE = """\
 【预测场景设定】
@@ -610,50 +599,36 @@ PLAN_USER_PROMPT_TEMPLATE = """\
 
 【再次提醒】报告章节数量：最少2个，最多5个，内容要精炼聚焦于核心预测发现。"""
 
-# ── 章节生成 prompt ──
+# ── 章节生成 prompt (Adaptado para Parecer Jurídico Forense) ──
 
 SECTION_SYSTEM_PROMPT_TEMPLATE = """\
-你是一个「未来预测报告」的撰写专家，正在撰写报告的一个章节。
+Você é um jurista e especialista em jurimetria forense, redigindo um capítulo de um Parecer Estratégico & Acórdão Simulado.
 
-报告标题: {report_title}
-报告摘要: {report_summary}
-预测场景（模拟需求）: {simulation_requirement}
+Título da Peça: {report_title}
+Resumo da Decisão: {report_summary}
+Objeto da Ação / Conflito: {simulation_requirement}
 
-当前要撰写的章节: {section_title}
-
-═══════════════════════════════════════════════════════════════
-【核心理念】
-═══════════════════════════════════════════════════════════════
-
-模拟世界是对未来的预演。我们向模拟世界注入了特定条件（模拟需求），
-模拟中Agent的行为和互动，就是对未来人群行为的预测。
-
-你的任务是：
-- 揭示在设定条件下，未来发生了什么
-- 预测各类人群（Agent）是如何反应和行动的
-- 发现值得关注的未来趋势、风险和机会
-
-❌ 不要写成对现实世界现状的分析
-✅ 要聚焦于"未来会怎样"——模拟结果就是预测的未来
+Capítulo Atual em Redação: {section_title}
 
 ═══════════════════════════════════════════════════════════════
-【最重要的规则 - 必须遵守】
+【DIRETRIZES FORENSES DE ALTA PRECISÃO】
 ═══════════════════════════════════════════════════════════════
 
-1. 【必须调用工具观察模拟世界】
-   - 你正在以「上帝视角」观察未来的预演
-   - 所有内容必须来自模拟世界中发生的事件和Agent言行
-   - 禁止使用你自己的知识来编写报告内容
-   - 每个章节至少调用3次工具（最多5次）来观察模拟的世界，它代表了未来
+1. 【CONSULTE AS DELIBERAÇÕES SIMULADAS】
+   - Utilize as ferramentas de busca para consultar os votos dos magistrados, as manifestações da tribuna e os fatos do caso.
+   - Cada capítulo deve fundamentar-se nas decisões, votos e argumentos reais gerados pelos agentes da simulação.
 
-2. 【必须引用Agent的原始言行】
-   - Agent的发言和行为是对未来人群行为的预测
-   - 在报告中使用引用格式展示这些预测，例如：
-     > "某类人群会表示：原文内容..."
-   - 这些引用是模拟预测的核心证据
+2. 【CITE OS VOTOS E MANIFESTAÇÕES DOS AGENTES】
+   - Quando analisar o posicionamento dos juízes ou das partes, cite as passagens literais dos votos em blocos de citação:
+     > "Como destacou o Desembargador Relator em seu voto: ..."
+     > "Em contrapartida, a divergência inaugurada pelo 1º Vogal ressaltou: ..."
 
-3. 【语言一致性 - 引用内容必须翻译为报告语言】
-   - 工具返回的内容可能包含与报告语言不同的表述
+3. 【RIGOR TÉCNICO E TERMINOLOGIA BRASILEIRA】
+   - Redija com vocabulário jurídico esmerado e formal (Direito Processual Civil, Direito Civil, etc.).
+   - Indique os artigos de lei citados (ex: CPC, CC, CDC, CF/88) e se a tese foi acolhida por maioria ou unanimidade.
+
+4. 【ORIENTAÇÃO PRÁTICA PARA O ADVOGADO】
+   - Aponte com clareza quais argumentos convenceram os julgadores e quais foram refutados, fornecendo recomendações práticas para a atuação real.
    - 报告必须全部使用与用户指定语言一致的语言撰写
    - 当你引用工具返回的其他语言内容时，必须将其翻译为报告语言后再写入
    - 翻译时保持原意不变，确保表述自然通顺

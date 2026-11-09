@@ -9,7 +9,7 @@
             <svg class="platform-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
             </svg>
-            <span class="platform-name">Info Plaza</span>
+            <span class="platform-name">Sessão Colegiada (Votação)</span>
             <span v-if="runStatus.twitter_completed" class="status-badge">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3">
                 <polyline points="20 6 9 17 4 12"></polyline>
@@ -32,14 +32,14 @@
           </div>
           <!-- 可用动作提示 -->
           <div class="actions-tooltip">
-            <div class="tooltip-title">Available Actions</div>
+            <div class="tooltip-title">Ritos da Sessão</div>
             <div class="tooltip-actions">
-              <span class="tooltip-action">POST</span>
-              <span class="tooltip-action">LIKE</span>
-              <span class="tooltip-action">REPOST</span>
-              <span class="tooltip-action">QUOTE</span>
-              <span class="tooltip-action">FOLLOW</span>
-              <span class="tooltip-action">IDLE</span>
+              <span class="tooltip-action">RELATÓRIO</span>
+              <span class="tooltip-action">VOTO RELATOR</span>
+              <span class="tooltip-action">VOTO VOGAL</span>
+              <span class="tooltip-action">DIVERGÊNCIA</span>
+              <span class="tooltip-action">PROCLAMAÇÃO</span>
+              <span class="tooltip-action">EMENTA</span>
             </div>
           </div>
         </div>
@@ -50,7 +50,7 @@
             <svg class="platform-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
             </svg>
-            <span class="platform-name">Topic Community</span>
+            <span class="platform-name">Tribuna de Debates & Contraditório</span>
             <span v-if="runStatus.reddit_completed" class="status-badge">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3">
                 <polyline points="20 6 9 17 4 12"></polyline>
@@ -73,11 +73,15 @@
           </div>
           <!-- 可用动作提示 -->
           <div class="actions-tooltip">
-            <div class="tooltip-title">Available Actions</div>
+            <div class="tooltip-title">Manifestações</div>
             <div class="tooltip-actions">
-              <span class="tooltip-action">POST</span>
-              <span class="tooltip-action">COMMENT</span>
-              <span class="tooltip-action">LIKE</span>
+              <span class="tooltip-action">SUSTENTAÇÃO</span>
+              <span class="tooltip-action">PRELIMINAR</span>
+              <span class="tooltip-action">PARECER MP</span>
+              <span class="tooltip-action">RÉPLICA</span>
+              <span class="tooltip-action">ESCLARECIMENTO</span>
+            </div>
+          </div>
               <span class="tooltip-action">DISLIKE</span>
               <span class="tooltip-action">SEARCH</span>
               <span class="tooltip-action">TREND</span>
@@ -543,6 +547,12 @@ const checkPlatformsCompleted = (data) => {
   const twitterCompleted = data.twitter_completed === true
   const redditCompleted = data.reddit_completed === true
   
+  // Se ambas as rodadas atingiram o total máximo (ex: 40/40), considera completado
+  const twitterRoundDone = data.total_rounds > 0 && data.twitter_current_round >= data.total_rounds
+  const redditRoundDone = data.total_rounds > 0 && data.reddit_current_round >= data.total_rounds
+  if (twitterRoundDone && redditRoundDone) return true
+  if ((twitterCompleted || twitterRoundDone) && (redditCompleted || redditRoundDone)) return true
+  
   // 如果至少有一个平台完成了，检查是否所有启用的平台都完成了
   // 通过 actions_count 判断平台是否被启用（如果 count > 0 或 running 曾为 true）
   const twitterEnabled = (data.twitter_actions_count > 0) || data.twitter_running || twitterCompleted
@@ -595,23 +605,38 @@ const fetchRunStatusDetail = async () => {
 // Helpers
 const getActionTypeLabel = (type) => {
   const labels = {
-    'CREATE_POST': 'POST',
-    'REPOST': 'REPOST',
-    'LIKE_POST': 'LIKE',
-    'CREATE_COMMENT': 'COMMENT',
-    'LIKE_COMMENT': 'LIKE',
-    'DO_NOTHING': 'IDLE',
+    'VOTO_RELATOR': 'VOTO CONDUTOR',
+    'VOTO_VOGAL': 'VOTO DO VOGAL',
+    'DIVERGENCIA': 'DIVERGÊNCIA',
+    'PROCLAMACAO': 'PROCLAMAÇÃO',
+    'SUSTENTACAO_ORAL': 'SUSTENTAÇÃO ORAL',
+    'PARECER_MP': 'PARECER DO MP',
+    'PRELIMINAR_DEFESA': 'PRELIMINAR',
+    'RELATORIO_PROCESSO': 'RELATÓRIO',
+    'CREATE_POST': 'MANIFESTAÇÃO',
+    'CREATE_COMMENT': 'INTERVENÇÃO',
+    'REPOST': 'ADESÃO',
+    'LIKE_POST': 'CONCORDÂNCIA',
+    'DO_NOTHING': 'AGUARDANDO',
     'FOLLOW': 'FOLLOW',
     'SEARCH_POSTS': 'SEARCH',
-    'QUOTE_POST': 'QUOTE',
-    'UPVOTE_POST': 'UPVOTE',
-    'DOWNVOTE_POST': 'DOWNVOTE'
+    'QUOTE_POST': 'CITAÇÃO',
+    'UPVOTE_POST': 'DE ACORDO',
+    'DOWNVOTE_POST': 'DIVERGE'
   }
-  return labels[type] || type || 'UNKNOWN'
+  return labels[type] || type || 'MANIFESTAÇÃO'
 }
 
 const getActionTypeClass = (type) => {
   const classes = {
+    'VOTO_RELATOR': 'badge-post',
+    'VOTO_VOGAL': 'badge-action',
+    'DIVERGENCIA': 'badge-comment',
+    'PROCLAMACAO': 'badge-post',
+    'SUSTENTACAO_ORAL': 'badge-action',
+    'PARECER_MP': 'badge-post',
+    'PRELIMINAR_DEFESA': 'badge-comment',
+    'RELATORIO_PROCESSO': 'badge-post',
     'CREATE_POST': 'badge-post',
     'REPOST': 'badge-action',
     'LIKE_POST': 'badge-action',

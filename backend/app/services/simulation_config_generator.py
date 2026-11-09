@@ -587,7 +587,7 @@ class SimulationConfigGenerator:
 - work_hours (int数组): 工作时段
 - reasoning (string): 简要说明为什么这样配置"""
 
-        system_prompt = "你是社交媒体模拟专家。返回纯JSON格式，时间配置需符合模拟场景中目标用户群体的作息习惯。"
+        system_prompt = "Você é um especialista em simulação judicial e jurimetria preditiva. Retorne JSON puro, adequando os tempos à dinâmica processual forense."
         system_prompt = f"{system_prompt}\n\n{get_language_instruction()}"
 
         try:
@@ -704,7 +704,7 @@ class SimulationConfigGenerator:
     "reasoning": "<简要说明>"
 }}"""
 
-        system_prompt = "你是舆论分析专家。返回纯JSON格式。注意 poster_type 必须精确匹配可用实体类型。"
+        system_prompt = "Você é um especialista em estratégia processual e contraditório forense. Retorne JSON puro. O poster_type deve corresponder exatamente aos tipos de entidades disponíveis."
         system_prompt = f"{system_prompt}\n\n{get_language_instruction()}\nIMPORTANT: The 'poster_type' field value MUST be in English PascalCase exactly matching the available entity types. Only 'content', 'narrative_direction', 'hot_topics' and 'reasoning' fields should use the specified language."
 
         try:
@@ -868,7 +868,7 @@ class SimulationConfigGenerator:
     ]
 }}"""
 
-        system_prompt = "你是社交媒体行为分析专家。返回纯JSON，配置需符合模拟场景中目标用户群体的作息习惯。"
+        system_prompt = "Você é um especialista em jurimetria e comportamento decisório de operadores jurídicos. Retorne JSON puro."
         system_prompt = f"{system_prompt}\n\n{get_language_instruction()}\nIMPORTANT: The 'stance' field value MUST be one of the English strings: 'supportive', 'opposing', 'neutral', 'observer'. All JSON field names and numeric values must remain unchanged. Only natural language text fields should use the specified language."
 
         try:

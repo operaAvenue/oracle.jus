@@ -714,8 +714,8 @@ class OasisProfileGenerator:
         }
     
     def _get_system_prompt(self, is_individual: bool) -> str:
-        """获取系统提示词"""
-        base_prompt = "你是社交媒体用户画像生成专家。生成详细、真实的人设用于舆论模拟,最大程度还原已有现实情况。必须返回有效的JSON格式，所有字符串值不能包含未转义的换行符。"
+        """获取系统提示词 (Adaptado para Perfis de Operadores Jurídicos)"""
+        base_prompt = "Você é um especialista em perfis processuais para simulação judiciária de alta fidelidade (Oráculo Jurídico). Gere personas técnicas e autênticas de magistrados (relatores/vogais), advogados, promotores, peritos e partes envolvidas. Deve retornar JSON válido com strings sem quebras de linha não escapadas."
         return f"{base_prompt}\n\n{get_language_instruction()}"
     
     def _build_individual_persona_prompt(
@@ -726,45 +726,40 @@ class OasisProfileGenerator:
         entity_attributes: Dict[str, Any],
         context: str
     ) -> str:
-        """构建个人实体的详细人设提示词"""
+        """构建个人实体的详细人设提示词 (Perfil Forense / Judicial)"""
         
-        attrs_str = json.dumps(entity_attributes, ensure_ascii=False) if entity_attributes else "无"
-        context_str = context[:3000] if context else "无额外上下文"
+        attrs_str = json.dumps(entity_attributes, ensure_ascii=False) if entity_attributes else "Sem atributos"
+        context_str = context[:3000] if context else "Sem contexto adicional"
         
-        return f"""为实体生成详细的社交媒体用户人设,最大程度还原已有现实情况。
+        return f"""Gere um perfil profissional aprofundado para simulação judicial e jurimétrica do caso.
 
-实体名称: {entity_name}
-实体类型: {entity_type}
-实体摘要: {entity_summary}
-实体属性: {attrs_str}
+Nome da Entidade: {entity_name}
+Tipo da Entidade: {entity_type}
+Resumo: {entity_summary}
+Atributos: {attrs_str}
 
-上下文信息:
+Contexto dos Autos / Disputa:
 {context_str}
 
-请生成JSON，包含以下字段:
+Gere um JSON estrito contendo:
 
-1. bio: 社交媒体简介，200字
-2. persona: 详细人设描述（2000字的纯文本），需包含:
-   - 基本信息（年龄、职业、教育背景、所在地）
-   - 人物背景（重要经历、与事件的关联、社会关系）
-   - 性格特征（MBTI类型、核心性格、情绪表达方式）
-   - 社交媒体行为（发帖频率、内容偏好、互动风格、语言特点）
-   - 立场观点（对话题的态度、可能被激怒/感动的内容）
-   - 独特特征（口头禅、特殊经历、个人爱好）
-   - 个人记忆（人设的重要部分，要介绍这个个体与事件的关联，以及这个个体在事件中的已有动作与反应）
-3. age: 年龄数字（必须是整数）
-4. gender: 性别，必须是英文: "male" 或 "female"
-5. mbti: MBTI类型（如INTJ、ENFP等）
-6. country: 国家（使用中文，如"中国"）
-7. profession: 职业
-8. interested_topics: 感兴趣话题数组
+1. bio: Síntese de atuação profissional forense (até 200 caracteres, ex: "Magistrado titular com postura legalista e rigorosa aderência a precedentes do STJ").
+2. persona: Descrição aprofundada (texto corrido detalhado) contendo:
+   - Papel na disputa (Magistrado Relator, Vogal Revisor, Advogado da Autoria, Advogado da Defesa, Ministério Público Custos Legis, etc.)
+   - Filosofia Hermenêutica (Legalista Estrito, Principiologista/Garantista, Pró-Consumidor/Social, Pró-Fazenda, ou Pragmatista Econômico)
+   - Sensibilidade a Precedentes (Respeito a Súmulas Vinculantes e Temas Repetitivos do STF/STJ)
+   - Valoração Probatória (Rigor na admissibilidade e distribuição do ônus da prova - art. 373 CPC)
+   - Memória e Posição Prévia diante dos fatos narrados na petição
+3. age: Idade estimada (número inteiro)
+4. gender: Gênero em inglês ("male" ou "female")
+5. mbti: Tipo de perfil decisório (ex: INTJ, ISTJ, etc.)
+6. country: País ("Brasil")
+7. profession: Cargo ou função jurídica (ex: "Desembargador", "Advogado", "Promotor de Justiça", "Perito")
+8. interested_topics: Matérias jurídicas de interesse (ex: ["Direito Civil", "Processo Civil", "CDC"])
 
-重要:
-- 所有字段值必须是字符串或数字，不要使用换行符
-- persona必须是一段连贯的文字描述
-- {get_language_instruction()} (gender字段必须用英文male/female)
-- 内容要与实体信息保持一致
-- age必须是有效的整数，gender必须是"male"或"female"
+Importante:
+- Todas as strings em uma única linha (sem quebras de linha raw).
+- Termos técnicos forenses e jurídicos adequados ao padrão brasileiro.
 """
 
     def _build_group_persona_prompt(

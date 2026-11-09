@@ -324,7 +324,31 @@ class ParallelIPCHandler:
         env, agent_graph, actual_platform = self._get_env_and_graph(platform)
         
         if not env or not agent_graph:
-            return {"platform": platform, "error": f"{platform}平台不可用"}
+            # Fallback inteligente do motor jurídico: responde diretamente via LLM com o perfil do agente
+            try:
+                from openai import OpenAI
+                api_key = os.environ.get("LLM_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
+                base_url = os.environ.get("LLM_BASE_URL", "") or os.environ.get("OPENAI_API_BASE_URL", "")
+                model = os.environ.get("LLM_MODEL_NAME", "gemini-2.5-flash")
+                client = OpenAI(api_key=api_key or "dummy", base_url=base_url or None)
+                
+                resp = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": f"Você é o operador jurídico/magistrado (Agente #{agent_id}) participante deste julgamento simulado. Responda à pergunta do entrevistador com formalidade forense, fundamentos técnicos e firmeza jurídica."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=600
+                )
+                answer = resp.choices[0].message.content or ""
+                return {
+                    "platform": platform,
+                    "agent_id": agent_id,
+                    "response": answer,
+                    "success": True
+                }
+            except Exception as ex:
+                return {"platform": platform, "error": str(ex)}
         
         try:
             agent = agent_graph.get_agent(agent_id)
@@ -371,10 +395,17 @@ class ParallelIPCHandler:
                 print(f"  Interview完成: agent_id={agent_id}, platform={platform}")
                 return True
         
-        # 未指定平台：同时采访两个平台
+        # 未指定平台：simulação jurídica sem OASIS env
         if not self.twitter_env and not self.reddit_env:
-            self.send_response(command_id, "failed", error="没有可用的模拟环境")
-            return False
+            res = await self._interview_single_platform(agent_id, prompt, "colegiado")
+            results = {
+                "agent_id": agent_id,
+                "prompt": prompt,
+                "platforms": {"colegiado": res}
+            }
+            self.send_response(command_id, "completed", result=results)
+            print(f"  Interview Judicial concluída com sucesso: agent_id={agent_id}")
+            return True
         
         results = {
             "agent_id": agent_id,
@@ -1576,17 +1607,32 @@ async def main():
     twitter_result: Optional[PlatformSimulation] = None
     reddit_result: Optional[PlatformSimulation] = None
     
-    if args.twitter_only:
-        twitter_result = await run_twitter_simulation(config, simulation_dir, twitter_logger, log_manager, args.max_rounds)
-    elif args.reddit_only:
-        reddit_result = await run_reddit_simulation(config, simulation_dir, reddit_logger, log_manager, args.max_rounds)
-    else:
-        # 并行运行（每个平台使用独立的日志记录器）
-        results = await asyncio.gather(
-            run_twitter_simulation(config, simulation_dir, twitter_logger, log_manager, args.max_rounds),
-            run_reddit_simulation(config, simulation_dir, reddit_logger, log_manager, args.max_rounds),
+    # Executa a Sessão de Julgamento Judicial com JuS-Sim (substituindo o OASIS social)
+    log_manager.info("⚖️ [JuS-Sim] Ativando Motor de Simulação Jurídica Colegiada...")
+    try:
+        from app.services.legal_simulation_engine import LegalSimulationEngine
+        engine = LegalSimulationEngine(
+            config=config,
+            simulation_dir=simulation_dir,
+            twitter_logger=twitter_logger,
+            reddit_logger=reddit_logger,
+            main_logger=log_manager,
+            max_rounds=args.max_rounds
         )
-        twitter_result, reddit_result = results
+        await engine.run_simulation()
+        log_manager.info("⚖️ [JuS-Sim] Sessão Judicial concluída com pleno êxito!")
+    except Exception as e:
+        log_manager.error(f"[JuS-Sim] Falha no motor judicial: {e}. Executando fallback...")
+        if args.twitter_only:
+            twitter_result = await run_twitter_simulation(config, simulation_dir, twitter_logger, log_manager, args.max_rounds)
+        elif args.reddit_only:
+            reddit_result = await run_reddit_simulation(config, simulation_dir, reddit_logger, log_manager, args.max_rounds)
+        else:
+            results = await asyncio.gather(
+                run_twitter_simulation(config, simulation_dir, twitter_logger, log_manager, args.max_rounds),
+                run_reddit_simulation(config, simulation_dir, reddit_logger, log_manager, args.max_rounds),
+            )
+            twitter_result, reddit_result = results
     
     total_elapsed = (datetime.now() - start_time).total_seconds()
     log_manager.info("=" * 60)

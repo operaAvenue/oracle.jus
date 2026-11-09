@@ -897,6 +897,13 @@ class SimulationRunner:
         twitter_enabled = os.path.exists(twitter_log)
         reddit_enabled = os.path.exists(reddit_log)
         
+        # Se ambas as rodadas atingiram o total configurado (ex: 40/40), marca como completo
+        if state.total_rounds > 0:
+            if state.twitter_current_round >= state.total_rounds and state.reddit_current_round >= state.total_rounds:
+                state.twitter_completed = True
+                state.reddit_completed = True
+                return True
+
         # 如果平台被启用但未完成，则返回 False
         if twitter_enabled and not state.twitter_completed:
             return False
