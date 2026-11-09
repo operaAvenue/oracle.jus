@@ -18,8 +18,8 @@ from ..services.graph_builder import BatchSubmission, GraphBuilderService
 from ..services.text_processor import TextProcessor
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
-from ..utils.locale import t
-from .auth import get_current_user, get_locale, set_locale
+from ..utils.locale import t, get_locale, set_locale
+from .auth import get_current_user
 from ..utils.zep_lifecycle import get_graph_readers, graph_lifecycle_lock
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
